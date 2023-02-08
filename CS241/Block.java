@@ -2,6 +2,7 @@ package CS241;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 public class Block {
 
@@ -19,7 +20,8 @@ public class Block {
     public ArrayList<Instruction> instr_list;
     public HashMap<Integer, Instruction> VariInstrRefTable; // Store all variable
     public HashMap<Integer, PhiFunctionInstr> PhiInstrRefTable;
-    public HashMap<Integer, ArrayList<Instruction>> renamePhiVariWhile;
+//    public HashMap<Integer, ArrayList<Instruction>> renamePhiVariWhile;
+    public ArrayList<Integer> PhiVar;
     public Type BlockType;
 
 //    private Block ifThenBlock;
@@ -28,20 +30,23 @@ public class Block {
 //    private Block whileFollowBlock;
 //    private Block joinBlock;
 
-    public Block(Type type){ BlockType=type;}
+    public Block(Type type){
+        this.VariInstrRefTable = new HashMap<>();
+        this.BlockType = type;
+        if ((BlockType == Type.if_join) || (BlockType == Type.while_join)){
+            PhiInstrRefTable = new HashMap<>();
+            PhiVar = new ArrayList<>();
+        }
+//        if (BlockType == Type.while_join){
+//            renamePhiVariWhile = new HashMap<>();
+//        }
+    }
 
     public Block(Program pgm, Type type) {
+        this(type);
         this.pgm = pgm;
         this.BlockID = pgm.block_pc;
         this.instr_list = new ArrayList<>();
-        this.BlockType = type;
-        this.VariInstrRefTable = new HashMap<>();
-        if ((BlockType == Type.if_join) || (BlockType == Type.while_join)){
-            PhiInstrRefTable = new HashMap<>();
-        }
-        if (BlockType == Type.while_join){
-            renamePhiVariWhile = new HashMap<>();
-        }
     }
 
 
@@ -54,6 +59,17 @@ public class Block {
     public void clone_VariableVersionTable(HashMap<Integer, Instruction> table) {
         this.VariInstrRefTable.putAll(table);
     }
+
+//    public Integer id_from_VariableVersionTable(Instruction instr) {
+//        Integer key = null;
+//        for (Map.Entry<Integer, Instruction> entry : this.VariInstrRefTable.entrySet()) {
+//            if (entry.getValue().equals(instr)) {
+//                key = entry.getKey();
+//                return key;
+//            }
+//        }
+//        return key;
+//    }
 
     public Instruction generateInstr(Instruction.Type type,  Value x, Value y){
         Instruction instr = new Instruction(pgm.instr_pc++, this, type, (x==null)?null:x.deepclone(), (y ==null) ? null : y.deepclone());
@@ -79,7 +95,6 @@ public class Block {
     }
 
 
-
     public Instruction generatePhiFunction(int val_id, Instruction instr,  boolean left){
         PhiFunctionInstr phi_instr;
         if (PhiInstrRefTable.containsKey(val_id)) {
@@ -96,30 +111,31 @@ public class Block {
             }else{
                 phi_instr.right = instr;
             }
+            // Phi function at the top of join block
+            this.instr_list.add(PhiInstrRefTable.size(), phi_instr);
             PhiInstrRefTable.put(val_id, phi_instr);
-            instr_list.add(phi_instr);
         }
         return phi_instr;
     }
 
 
-    public void rename_Phi_vari_instr(int id, Instruction instr){
-        if (renamePhiVariWhile.containsKey(id)){
-
-        }
-    }
-
-    public void add_renamePhiVariWhile(Value v){
-        if (v.type == Value.Type.variable){
-            if (this.renamePhiVariWhile.containsKey(v.varIdent)){
-                this.renamePhiVariWhile.get(v.varIdent).add(v.instrRef)
-            }else {
-                this.renamePhiVariWhile.put(v.varIdent, new ArrayList<>() {{
-                    add(v.instrRef);
-                }});
-            }
-        }
-    }
+//    public void rename_Phi_vari_instr(int id, Instruction instr){
+//        if (renamePhiVariWhile.containsKey(id)){
+//
+//        }
+//    }
+//
+//    public void add_renamePhiVariWhile(Value v){
+//        if (v.type == Value.Type.variable){
+//            if (this.renamePhiVariWhile.containsKey(v.varIdent)){
+//                this.renamePhiVariWhile.get(v.varIdent).add(v.instrRef);
+//            }else {
+//                this.renamePhiVariWhile.put(v.varIdent, new ArrayList<>() {{
+//                    add(v.instrRef);
+//                }});
+//            }
+//        }
+//    }
 
 
 //    @Override

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 
+
 public class Parser {
     public Tokenizer myTokenizer;
     private int inputSym; // the current token on the input
@@ -294,16 +295,22 @@ public class Parser {
         rel.left = expression();
         switch (inputSym){
             case Sym.eqlToken:
+                rel.op = Relation.Operator.Equal;
                 break;
             case Sym.neqToken:
+                rel.op = Relation.Operator.NotEqual;
                 break;
             case Sym.lssToken:
+                rel.op = Relation.Operator.LessThan;
                 break;
             case Sym.geqToken:
+                rel.op = Relation.Operator.GreaterEqual;
                 break;
             case Sym.leqToken:
+                rel.op = Relation.Operator.LessEqual;
                 break;
             case Sym.gtrToken:
+                rel.op = Relation.Operator.GreaterThan;
                 break;
             default:
                 myTokenizer.Error("SyntaxErr");

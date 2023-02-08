@@ -74,21 +74,21 @@ public class Program {
         return instr;
     }
 
-    public Instruction generateConstantInstr(int val){
-        Instruction instr = new ConstantInstr(instr_pc++, this.blocks.get(0), val);
-        this.blocks.get(0).add_instr(instr);
-        return instr;
-    }
+//    public Instruction generateConstantInstr(int val){
+//        Instruction instr = new ConstantInstr(instr_pc++, this.blocks.get(0), val);
+//        this.blocks.get(0).add_instr(instr);
+//        return instr;
+//    }
 
     public Instruction generateConstantInstr(Value val){
-        Instruction instr = new ConstantInstr(instr_pc++, this.blocks.get(0), val.value);
+        Instruction instr = new ConstantInstr(instr_pc++, this.blocks.get(0), val);
         this.blocks.get(0).add_instr(instr);
         return instr;
     }
 
     public Instruction findConstantInstr(int val){
         for (Instruction i: this.blocks.get(0).instr_list){
-            if (((ConstantInstr)i).value == val){
+            if (((ConstantInstr)i).left.value == val){
                 return ((ConstantInstr)i);
             }
         }
@@ -144,6 +144,10 @@ public class Program {
             if ((i.left.instrRef.id == instr.left.instrRef.id) &&
                     (i.right.instrRef.id == instr.right.instrRef.id)) {
                 this.instr_pc--;
+                if (b.BlockType == Block.Type.while_do){
+                    instr.id = -1;              // dummy instruction
+                    b.add_instr(instr);         // only add into block instr list
+                }
                 return i;
             }
         }
@@ -151,6 +155,28 @@ public class Program {
         b.add_instr(instr);
         return instr;
     }
+
+
+    public Instruction processCSEinWhile(Instruction instr){
+        ArrayList<Instruction> instr_list = this.CSE.get(instr.type);
+        for (Instruction i : instr_list) {
+            // no need to replace, because of reference to instr
+            // add
+            if ((i.left.instrRef.id == instr.left.instrRef.id) &&
+                    (i.right.instrRef.id == instr.right.instrRef.id)) {
+//                    this.instr_pc--;    // no need decrease pc
+//                b.instr_list.remove(index);
+                return i;
+            }else{
+                if (instr.id == -1) {
+                    instr.id = this.instr_pc++;
+                }
+            }
+        }
+        instr_list.add(instr);
+        return instr;
+        }
+
 
 
     public String toString() {

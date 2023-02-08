@@ -56,6 +56,7 @@ public class VariableTable {
     }
 
 
+
     public static Boolean isAssignedVari(int id) {
         if (VariMemoryAddress.containsKey(id)) {
             return true;

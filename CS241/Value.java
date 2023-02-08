@@ -35,6 +35,7 @@ public class Value{
                  Instruction instrRef,
                  Relation.Operator relOp,
                  Block branchBlock) {
+
         this.value = value;
         this.type = type;
         this.varIdent = varIdent;
@@ -79,7 +80,8 @@ public class Value{
             case constant:
                 return "(" + instrRef.id + ")";
             case variable:
-                return VariableTable.Id2String(this.varIdent);
+                return "(" + instrRef.id + ")";
+//                return VariableTable.Id2String(this.varIdent);
             case register:
                 return "(" + instrRef.id + ")";
             case condition:

@@ -80,23 +80,39 @@ public class Instruction {
     }
 
 
-    public static Type RelationMap(Relation.Operator op){
+    public static Type ComplementRelationMap(Relation.Operator op){
         switch (op) {
             case LessThan:
-                return Type.blt;
+                return Type.bge;
             case LessEqual:
-                return Type.ble;
+                return Type.bgt;
             case GreaterThan:
                 return Type.bgt;
             case GreaterEqual:
-                return Type.bge;
+                return Type.blt;
             case Equal:
-                return Type.beq;
-            case NotEqual:
                 return Type.bne;
+            case NotEqual:
+                return Type.beq;
             default:
                 return Type.bra;
         }
+//        switch (op) {
+//            case LessThan:
+//                return Type.blt;
+//            case LessEqual:
+//                return Type.ble;
+//            case GreaterThan:
+//                return Type.bgt;
+//            case GreaterEqual:
+//                return Type.bge;
+//            case Equal:
+//                return Type.beq;
+//            case NotEqual:
+//                return Type.bne;
+//            default:
+//                return Type.bra;
+//        }
 
     }
 

@@ -4,6 +4,7 @@ import CS241.Grammer.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 
 
 public class IRGenerator {
@@ -63,7 +64,7 @@ public class IRGenerator {
 
 
     private void processStatement(Statement stmt, Block block) {
-
+        Value val = null;
         if (stmt instanceof Assignment) {
             Assignment assignment = (Assignment) stmt;
             processAssignment(assignment, block);
@@ -100,31 +101,63 @@ public class IRGenerator {
 //            if(!variable.isArrayDesignator)
 //                joinBlocks.peek().createPhiFunction(variable.varIdent);
 //        }
-        Value exprValue = processExpression(expr, block);
+        Value exprValue = processExpression(expr, block).deepclone();
+        exprValue.varIdent = id;
+        exprValue.type = Value.Type.variable;
+
+//        if (exprValue.type == Value.Type.constant) {
+//            exprValue.varIdent = id;
+//            exprValue.type = Value.Type.variable;
+//        }
         // Assert a variable not exists
 //        Value vari = new Value(Value.Type.variable, id);
 
         block.VariInstrRefTable.put(id, exprValue.instrRef);
-
-
         VariableTable.VariMemoryAddress.put(id, exprValue);
+
 //        Instruction instr = block.generateInstr(Instruction.Type.store, exprValue, vari);
 //        pgm.vari_version_table.put(id, instr.id);
 
         if ((block.BlockType == Block.Type.if_then) && (block.followBlock.BlockType == Block.Type.if_join)){
-            block.followBlock.generatePhiFunction(id, exprValue.clone().instrRef, true);
+            block.followBlock.generatePhiFunction(id, exprValue.clone().instrRef, true);  // generate left Phi
         }else if ((block.BlockType == Block.Type.if_else) && (block.followBlock.BlockType == Block.Type.if_join)){
-            block.followBlock.generatePhiFunction(id, exprValue.clone().instrRef, false);
+            block.followBlock.generatePhiFunction(id, exprValue.clone().instrRef, false); // generate right Phi
         }
 
         if ((block.BlockType == Block.Type.while_do) && block.preBlock.BlockType == Block.Type.while_join){
-            Instruction temp = block.preBlock.VariInstrRefTable.get(id);
-            block.preBlock.generatePhiFunction(id, temp, true);
-            Instruction inst = block.preBlock.generatePhiFunction(id, exprValue.clone().instrRef, false);
+            Block join_block = block.preBlock;
+            Instruction temp = join_block.VariInstrRefTable.get(id);
+            join_block.generatePhiFunction(id, temp, true);
+            Instruction phi_inst = join_block.generatePhiFunction(id, exprValue.clone().instrRef, false);
 //            renamePhiVari(id, inst);  // after all phi is created!
-            block.preBlock.VariInstrRefTable.put(id, inst);
+            join_block.PhiVar.add(id);
+            join_block.VariInstrRefTable.put(id, phi_inst);
+
+            for(Instruction instr: join_block.instr_list){
+                if (!(instr instanceof PhiFunctionInstr)){
+                    if (instr.left != null && join_block.PhiVar.contains(instr.left.varIdent))
+                        instr.left.instrRef = join_block.VariInstrRefTable.get(instr.left.varIdent);   // whether need to clone instr!
+                    if (instr.right != null && join_block.PhiVar.contains(instr.right.varIdent))
+                        instr.right.instrRef = join_block.VariInstrRefTable.get(instr.right.varIdent);   // whether need to clone instr!
+//                    Instruction new_instr_link = pgm.processCSEinWhile(instr, block);
+                }
+            }
+
+//            for (Instruction instr : block.instr_list){
+//                if (join_block.PhiVar.contains(instr.left.varIdent))
+//                    instr.left.instrRef = join_block.VariInstrRefTable.get(instr.left.varIdent);   // whether need to clone instr!
+//                if (join_block.PhiVar.contains(instr.right.varIdent))
+//                    instr.right.instrRef = join_block.VariInstrRefTable.get(instr.right.varIdent);   // whether need to clone instr!
+//                Instruction new_instr_link = pgm.processCSEinWhile(instr, block);
+//
+//                exprValue.instrRef = new_instr_link;
+//
+//                block.VariInstrRefTable.put(id, exprValue.instrRef);
+//                VariableTable.VariMemoryAddress.put(id, exprValue);
+//            }
 
         }
+
 
     }
 
@@ -172,10 +205,10 @@ public class IRGenerator {
 
         Instruction instr = b.generateInstr(Instruction.Type.cmp, exprLeft, exprRight);
 
-        if (b.BlockType == Block.Type.while_join){
-            b.add_renamePhiVariWhile(exprLeft);
-            b.add_renamePhiVariWhile(exprRight);
-        }
+//        if (b.BlockType == Block.Type.while_join){
+//            b.add_renamePhiVariWhile(exprLeft);
+//            b.add_renamePhiVariWhile(exprRight);
+//        }
 
         Value relation = new Value();
         relation.relOp = rel.op;
@@ -188,8 +221,8 @@ public class IRGenerator {
 
     private void processIfStatement(IfStatement ifStmt, Block block) {
         Value relation = processRelation(ifStmt.condi, block);
-        Value rel_branch = new Value(Value.Type.branch, 0);     // fall through, 0 is to be linked
-        Instruction rel_instr = block.generateInstr(Instruction.RelationMap(relation.relOp), relation, rel_branch);
+        Instruction rel_instr = block.generateInstr(Instruction.ComplementRelationMap(relation.relOp),
+                                                    relation, new Value(Value.Type.branch, 0));  // fall through, 0 is to be linked
 
         Block joinBlock = new Block(pgm, Block.Type.if_join);
         joinBlock.clone_VariableVersionTable(block.VariInstrRefTable);
@@ -206,8 +239,8 @@ public class IRGenerator {
             thenBlock.generateInstr(null);
         }
 
-        Value bra_branch = new Value(Value.Type.branch, 0);    // fall through, 0 is to be linked
-        Instruction bra_instr = thenBlock.generateInstr(Instruction.Type.bra,  bra_branch);
+        Instruction bra_instr = thenBlock.generateInstr(Instruction.Type.bra,
+                                                        new Value(Value.Type.branch, 0));   // fall through, 0 is to be linked
 
         Block elseBlock = new Block(pgm, Block.Type.if_else);
         elseBlock.clone_VariableVersionTable(block.VariInstrRefTable);
@@ -248,41 +281,94 @@ public class IRGenerator {
     }
 
     private void processWhileStatement(WhileStatement whileStmt, Block block) {
-//        HashMap<Integer, Integer> ssa_version = pgm.cur_block().VariableVersionTable_clone();
 
-        Block joinBlock = new Block(Block.Type.while_join);
+        Block joinBlock = new Block(pgm, Block.Type.while_join);
         joinBlock.clone_VariableVersionTable(block.VariInstrRefTable);
 
-        Block doBlock = new Block(Block.Type.while_do);
+        Block doBlock = new Block(pgm, Block.Type.while_do);
         doBlock.clone_VariableVersionTable(block.VariInstrRefTable);
         doBlock.preBlock = joinBlock;
 
-        Block nextBlock = new Block(Block.Type.normal);
+        Block nextBlock = new Block(pgm, Block.Type.normal);
         nextBlock.preBlock = joinBlock;
 
         Value relation = processRelation(whileStmt.condi, joinBlock);
         Value rel_branch = new Value(Value.Type.branch, 0);
-        joinBlock.generateInstr(Instruction.RelationMap(relation.relOp), rel_branch);
-
+        Instruction rel_branch_instr = joinBlock.generateInstr(Instruction.ComplementRelationMap(relation.relOp),relation,rel_branch);
 
         for (Statement stmt : whileStmt.body) {
             processStatement(stmt, doBlock);
         }
+
+        // follows the order: FIFO, first assignment, first in PhiVar,
+        for (int assigned_vari: joinBlock.PhiVar) {
+            for (Instruction instr : doBlock.instr_list) {
+                if (assigned_vari == instr.left.varIdent || assigned_vari == instr.right.varIdent) {
+                    if (assigned_vari == instr.left.varIdent)
+                        instr.left.instrRef = joinBlock.VariInstrRefTable.get(instr.left.varIdent);   // whether need to clone instr!
+                    if (assigned_vari == instr.right.varIdent)
+                        instr.right.instrRef = joinBlock.VariInstrRefTable.get(instr.right.varIdent);   // whether need to clone instr!
+//                    Instruction new_instr_link = pgm.processCSEinWhile(instr, block);
+//                    int var_id = doBlock.id_from_VariableVersionTable(instr);
+//                    doBlock.VariInstrRefTable.put(var_id, new_instr_link);
+//                    System.out.println("");
+//                exprValue.instrRef = new_instr_link;
+//                block.VariInstrRefTable.put(id, exprValue.instrRef);
+//                VariableTable.VariMemoryAddress.put(id, exprValue);
+                }
+            }
+        }
+
+        int i = 0;
+        Iterator<Instruction> iterator = doBlock.instr_list.iterator();
+        while (iterator.hasNext()) {
+            Instruction instr = iterator.next();
+            if (instr.id == -1) {
+                int var_id = joinBlock.PhiVar.get(i);
+                Instruction new_instr_link = pgm.processCSEinWhile(instr);
+                doBlock.VariInstrRefTable.put(var_id, new_instr_link);
+                if (instr.id == -1) {
+                    iterator.remove();
+                }
+            }
+            i++;
+        }
+
+            //
+//        for (int i=0; i <= doBlock.instr_list.size(); i++){
+//            if (doBlock.instr_list.get(i).id == -1) {
+//                int var_id = joinBlock.PhiVar.get(i);
+//                Instruction new_instr_link = pgm.processCSEinWhile(doBlock.instr_list.get(i), doBlock, i);
+//                doBlock.VariInstrRefTable.put(var_id, new_instr_link);
+//                if (doBlock.instr_list.get(i).id == -1){
+//                }
+////            }else{
+////                pgm.processCSEinWhile(doBlock.instr_list.get(i), doBlock);  //update CSE
+//            }
+//        }
 
         if (doBlock.instr_list.size() == 0){
             doBlock.generateInstr(null);  // create empty SSA
         }
 
         Value bra_branch = new Value(Value.Type.branch, 0);
-
-        doBlock.generateInstr(Instruction.Type.bra, bra_branch);
+        Instruction bra_instr = doBlock.generateInstr(Instruction.Type.bra, bra_branch);
 
 //        updateReferenceForPhiVarInLoopBody(joinBlock, doBlock);
 //        updateReferenceForPhiVarInJoinBlock(joinBlock);
 
         // end do
-        Block followBlock = new Block(Block.Type.normal);
-        pgm.add_block(followBlock);
+        pgm.add_block(joinBlock);
+        joinBlock.BlockID = pgm.block_pc;
+
+        pgm.add_block(doBlock);
+        doBlock.BlockID = pgm.block_pc;
+
+        pgm.add_block(nextBlock);
+        nextBlock.BlockID = pgm.block_pc;
+
+        rel_branch_instr.right.branchBlock = nextBlock;
+        bra_instr.left.branchBlock = joinBlock;
     }
 
 
@@ -302,10 +388,7 @@ public class IRGenerator {
 
             compute(Instruction.ExprOperatorMap(exprOp),result, termVal, b);
 
-//            if (result.type == Value.Type.register){
-
             result.instrRef = instr;
-//            }
 
 //            if (b.BlockType== Block.Type.while_do){
 //                b.preBlock.add_renamePhiVariWhile(result);
@@ -457,7 +540,10 @@ public class IRGenerator {
             }
         }
     }
-//
+
+
+
+    //
 //    public Value computeRelation(Relation rel, Value x, Value y) {
 //        if (x.type == Value.Type.constant && y.type == Value.Type.constant) {
 //            int xc = x.value;
