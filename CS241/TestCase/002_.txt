@@ -1,0 +1,56 @@
+Program: 
+BB0: [
+3: Const #0
+]
+BB1: [
+1: read 
+2: add (1) (1)
+4: cmp (1) (3)
+5: beq (4) (10)
+]
+BB2: [
+6: add (2) (2)
+9: bra (7) 
+]
+BB3: [
+10: <Empty>
+]
+join BB4: [
+7: Phi (6) (2)
+8: Phi (6) (1)
+11: write (8) 
+12: end 
+]
+
+====================================================
+The SSA variable table of each block: 
+BB0 vari table: {
+}
+BB1 vari table: {
+a: (1)
+b: (1)
+c: (1)
+d: (2)
+e: (2)
+}
+BB2 vari table: {
+a: (6)
+b: (1)
+c: (1)
+d: (6)
+e: (2)
+}
+BB3 vari table: {
+a: (1)
+b: (1)
+c: (1)
+d: (2)
+e: (2)
+}
+BB4 vari table: {
+a: (8)
+b: (1)
+c: (1)
+d: (7)
+e: (2)
+}

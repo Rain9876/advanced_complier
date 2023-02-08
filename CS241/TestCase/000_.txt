@@ -1,0 +1,18 @@
+Program: 
+BB0: [
+1: Const #51
+2: Const #2
+]
+BB1: [
+3: mul (2) (1)
+4: end
+]
+
+====================================================
+The SSA variable table of each block:
+BB0 vari table: {
+}
+BB1 vari table: {
+x: (1)
+y: (3)
+}

@@ -1,0 +1,20 @@
+BB0: [
+1: Const #1
+2: Const #2
+]
+BB1: [
+3: mul (1) (2)
+4: mul (3) (2)
+5: add (3) (4)
+6: write (5) 
+7: end 
+]
+
+====================================================
+The SSA variable table of each block: 
+BB0 vari table: {
+}
+BB1 vari table: {
+a: (1)
+b: (2)
+}
