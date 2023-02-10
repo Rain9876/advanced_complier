@@ -87,7 +87,7 @@ public class Instruction {
             case LessEqual:
                 return Type.bgt;
             case GreaterThan:
-                return Type.bgt;
+                return Type.ble;
             case GreaterEqual:
                 return Type.blt;
             case Equal:

@@ -8,7 +8,7 @@ import java.net.URL;
 public class test {
     public static void main(String[] args) throws IOException {
         String currentWorkingDir = System.getProperty("user.dir");
-        String test = currentWorkingDir + "/src/CS241/TestCase/004.txt";
+        String test = currentWorkingDir + "/src/CS241/TestCase/006.txt";
         Parser p = new Parser(test);
         Computation comp = p.computation();
 
@@ -25,9 +25,12 @@ public class test {
         }
 
 
-        // Q1, cmp (1)
-        // Q2, bge
-        // Q3, subexpression DLX execute?
+//         Q1, cmp (1)
+        // Q2, subexpression DLX execute， when DLX execute, is individual project include DLX
+        // Q3, variable scope?
+        // Q4, if only then block, then phi function? Will joint block empty or not?
+
+
 
 
 //        System.out.println(ir.CG.ExpressionBuff.size());

@@ -64,7 +64,7 @@ public class IRGenerator {
 
 
     private void processStatement(Statement stmt, Block block) {
-        Value val = null;
+
         if (stmt instanceof Assignment) {
             Assignment assignment = (Assignment) stmt;
             processAssignment(assignment, block);
@@ -75,17 +75,14 @@ public class IRGenerator {
 
         } else if (stmt instanceof IfStatement) {
             IfStatement ifStatement = (IfStatement) stmt;
-
             processIfStatement(ifStatement, block);
 
         } else if (stmt instanceof WhileStatement) {
             WhileStatement whileStatement = (WhileStatement) stmt;
-
             processWhileStatement(whileStatement, block);
 
         } else if (stmt instanceof ReturnStatement) {
             ReturnStatement returnStatement = (ReturnStatement) stmt;
-
             processReturnStatement(returnStatement, block);
         }
     }
@@ -143,6 +140,27 @@ public class IRGenerator {
                 }
             }
 
+             // follows the order: FIFO, first assignment, first in PhiVar,
+
+//            for (int assigned_vari: joinBlock.PhiVar) {
+            for (Instruction instr : block.instr_list) {
+                if ((instr.left != null &&  id == instr.left.varIdent )||
+                        (instr.right != null && id == instr.right.varIdent)) {
+                    if (instr.left != null &&  id == instr.left.varIdent )
+                        instr.left.instrRef = join_block.VariInstrRefTable.get(instr.left.varIdent);   // whether need to clone instr!
+                    if (instr.right != null && id == instr.right.varIdent)
+                        instr.right.instrRef = join_block.VariInstrRefTable.get(instr.right.varIdent);   // whether need to clone instr!
+//                    Instruction new_instr_link = pgm.processCSEinWhile(instr, block);
+//                    int var_id = doBlock.id_from_VariableVersionTable(instr);
+//                    doBlock.VariInstrRefTable.put(var_id, new_instr_link);
+//                    System.out.println("");
+//                exprValue.instrRef = new_instr_link;
+//                block.VariInstrRefTable.put(id, exprValue.instrRef);
+//                VariableTable.VariMemoryAddress.put(id, exprValue);
+                }
+            }
+//            }
+
 //            for (Instruction instr : block.instr_list){
 //                if (join_block.PhiVar.contains(instr.left.varIdent))
 //                    instr.left.instrRef = join_block.VariInstrRefTable.get(instr.left.varIdent);   // whether need to clone instr!
@@ -168,9 +186,42 @@ public class IRGenerator {
             if (name.equals("OutputNum")){
                 if (function.paramExpressions.size() == 1){
                         Value param = processExpression(function.paramExpressions.get(0), block);
+
+                        ToEndOfDomineeBlock(block).generateInstr(Instruction.Type.write, param);
 //                        if (param.type == Value.Type.constant){  // unknown
-                            block.generateInstr(Instruction.Type.write, param);
-//                        }
+//                        if (block.BlockType == Block.Type.while_do || block.BlockType == Block.Type.if_then ) {
+
+//                            Instruction bra_instr= null;
+//                            if (block.dominees.size() != 0) {
+//                                Block cur_block = block.dominees.get(0);
+//
+//                                while ((cur_block.BlockType != Block.Type.while_join) && (cur_block.dominees.size() != 0)) {
+//                                    cur_block =  cur_block.dominees.get(cur_block.dominees.size()-1);
+//                                }
+//                                if (cur_block.BlockType == Block.Type.while_join) {
+//                                    // while block always has its dominates, go to the follow
+//                                    bra_instr = cur_block.dominees.get(cur_block.dominees.size() - 1).generateInstr(Instruction.Type.write, param);   // fall through, 0 is to be linked
+//                                }else{ // means no more dominators; Direct add bra to here
+//                                    bra_instr = cur_block.generateInstr(Instruction.Type.write, param);   // fall through, 0 is to be linked
+//                                }
+//                            }else{
+//                                bra_instr = block.generateInstr(Instruction.Type.write, param);   // fall through, 0 is to be linked
+//                            }
+//
+//                            Instruction bra_instr = null;
+//                            Block cur_block = block;
+//                            while ((cur_block.BlockType != Block.Type.while_join) &&
+//                                    (cur_block.BlockType != Block.Type.if_join) &&
+//                                    (cur_block.dominees.size() != 0)) {
+//                                cur_block = cur_block.dominees.get(0);
+//                            }
+//                            if (cur_block.BlockType == Block.Type.while_join) {
+//                                bra_instr = cur_block.dominees.get(cur_block.dominees.size() - 1).generateInstr(Instruction.Type.write, param);   // fall through, 0 is to be linked
+//                            } else {
+//                                bra_instr = cur_block.generateInstr(Instruction.Type.write, param);   // fall through, 0 is to be linke
+//                            }
+////                        }
+
                 }
                 return null;
             }else if (name.equals("InputNum")) {
@@ -220,17 +271,23 @@ public class IRGenerator {
     }
 
     private void processIfStatement(IfStatement ifStmt, Block block) {
+
         Value relation = processRelation(ifStmt.condi, block);
-        Instruction rel_instr = block.generateInstr(Instruction.ComplementRelationMap(relation.relOp),
+        Instruction rel_branch_instr = block.generateInstr(Instruction.ComplementRelationMap(relation.relOp),
                                                     relation, new Value(Value.Type.branch, 0));  // fall through, 0 is to be linked
 
         Block joinBlock = new Block(pgm, Block.Type.if_join);
         joinBlock.clone_VariableVersionTable(block.VariInstrRefTable);
+        joinBlock.preBlock = block;
+        block.dominees.add(joinBlock);
 
         Block thenBlock = new Block(pgm, Block.Type.if_then);
         thenBlock.clone_VariableVersionTable(block.VariInstrRefTable);
         thenBlock.preBlock = block;
         thenBlock.followBlock = joinBlock;
+        block.dominees.add(thenBlock);
+        pgm.add_block(thenBlock, true);
+        thenBlock.BlockID = pgm.block_pc;
 
         for (Statement stmt : ifStmt.thenStmts)
             processStatement(stmt, thenBlock);
@@ -239,28 +296,103 @@ public class IRGenerator {
             thenBlock.generateInstr(null);
         }
 
-        Instruction bra_instr = thenBlock.generateInstr(Instruction.Type.bra,
-                                                        new Value(Value.Type.branch, 0));   // fall through, 0 is to be linked
+        // if thenBlock constains joint block, pass bra instruction to nested join block
+        // else
 
-        Block elseBlock = new Block(pgm, Block.Type.if_else);
-        elseBlock.clone_VariableVersionTable(block.VariInstrRefTable);
-        elseBlock.preBlock = block;
-        elseBlock.followBlock = joinBlock;
+        Block bra_block = ToEndOfDomineeBlock(thenBlock);
+        Instruction bra_instr = bra_block.generateInstr(Instruction.Type.bra, new Value(Value.Type.branch, 0));
 
-        rel_instr.right.branchBlock = elseBlock;
+//        Instruction bra_instr = null;
+//        Block cur_block = thenBlock;
+//        while ((cur_block.BlockType != Block.Type.while_join) &&
+//                (cur_block.BlockType != Block.Type.if_join) &&
+//                (cur_block.dominees.size()!=0)){
+//            cur_block =  cur_block.dominees.get(0);
+//        }
+//
+//        if (cur_block.BlockType == Block.Type.while_join) {
+//            bra_instr = cur_block.dominees.get(cur_block.dominees.size() - 1).generateInstr(Instruction.Type.bra,
+//                    new Value(Value.Type.branch, 0));   // fall through, 0 is to be linked
+//        }else if (cur_block.BlockType == Block.Type.if_join){ // means no more dominators; Direct add bra to here
+//            bra_instr = cur_block.generateInstr(Instruction.Type.bra, new Value(Value.Type.branch, 0));   // fall through, 0 is to be linked
+//        }else{
+//            bra_instr = cur_block.generateInstr(Instruction.Type.bra,
+//                    new Value(Value.Type.branch, 0));   // fall through, 0 is to be linke
+//        }
+
+//
+//        if (thenBlock.dominees.size() != 0) {
+//            Block cur_block = thenBlock.dominees.get(0);   // could be do-block, then_block or normal_block
+//            while ((cur_block.BlockType != Block.Type.while_join) && (cur_block.dominees.size() != 0)) {
+//                cur_block =  cur_block.dominees.get(cur_block.dominees.size()-1);
+//            }
+//            if (cur_block.BlockType == Block.Type.while_join) {
+//                // while block always has its dominates, go to the follow
+//                bra_instr = cur_block.dominees.get(cur_block.dominees.size() - 1).generateInstr(Instruction.Type.bra,
+//                        new Value(Value.Type.branch, 0));   // fall through, 0 is to be linked
+//            }else{ // means no more dominators; Direct add bra to here
+//                bra_instr = cur_block.generateInstr(Instruction.Type.bra, new Value(Value.Type.branch, 0));   // fall through, 0 is to be linked
+//            }
+//        }else{
+//            bra_instr = thenBlock.generateInstr(Instruction.Type.bra,
+//                    new Value(Value.Type.branch, 0));   // fall through, 0 is to be linked
+//        }
+
+
+//        Instruction bra_instr= null;
+//        if (thenBlock.dominees.size() != 0) {
+//            bra_instr = thenBlock.dominees.get(thenBlock.dominees.size()-1).generateInstr(Instruction.Type.bra,
+//                    new Value(Value.Type.branch, 0));   // fall through, 0 is to be linked
+////            if (block.BlockType != Block.Type.normal && joinBlock.instr_list.size() == 0){
+////                joinBlock.generateInstr(null);  // create empty SSA
+////            }
+//        }else{
+//            bra_instr = thenBlock.generateInstr(Instruction.Type.bra,
+//                    new Value(Value.Type.branch, 0));   // fall through, 0 is to be linked
+//        }
+
+        Block elseBlock = null;
         if (ifStmt.elseStmts.size() > 0) {
-            for (Statement stmt : ifStmt.elseStmts)
-                processStatement(stmt, elseBlock);
-        }
+            elseBlock = new Block(pgm, Block.Type.if_else);
+            elseBlock.clone_VariableVersionTable(block.VariInstrRefTable);
+            elseBlock.preBlock = block;
+            elseBlock.followBlock = joinBlock;
+//            pgm.add_block(elseBlock);
+//            elseBlock.BlockID = pgm.block_pc;
+            block.dominees.add(elseBlock);
+            pgm.add_block(elseBlock, true);
+            elseBlock.BlockID = pgm.block_pc;
 
-        if (elseBlock.instr_list.size() == 0){
-            elseBlock.generateInstr(null);  // create empty SSA
-        }
+            rel_branch_instr.right.branchBlock = elseBlock;
+            if (ifStmt.elseStmts.size() > 0) {
+                for (Statement stmt : ifStmt.elseStmts)
+                    processStatement(stmt, elseBlock);
+            }
+            if (elseBlock.instr_list.size() == 0) {
+                elseBlock.generateInstr(null);  // create empty SSA
+            }
 
+//            Instruction bra_instr= null;
+//            if (thenBlock.dominees.size() != 0) {
+//                bra_instr = elseBlock.dominees.get(elseBlock.dominees.size()-1).generateInstr(Instruction.Type.bra,
+//                        new Value(Value.Type.branch, 0));   // fall through, 0 is to be linked
+//            }else{
+//                bra_instr = elseBlock.generateInstr(Instruction.Type.bra,
+//                        new Value(Value.Type.branch, 0));   // fall through, 0 is to be linked
+//            }
+
+        }else{
+            rel_branch_instr.right.branchBlock = joinBlock;
+        }
 
         for(int vari_id: joinBlock.PhiInstrRefTable.keySet()){
             joinBlock.PhiInstrRefTable.get(vari_id).left = thenBlock.VariInstrRefTable.get(vari_id);
-            joinBlock.PhiInstrRefTable.get(vari_id).right = elseBlock.VariInstrRefTable.get(vari_id);
+
+            if (ifStmt.elseStmts.size() > 0) {
+                joinBlock.PhiInstrRefTable.get(vari_id).right = elseBlock.VariInstrRefTable.get(vari_id);
+            }else{
+                joinBlock.PhiInstrRefTable.get(vari_id).right = joinBlock.VariInstrRefTable.get(vari_id);
+            }
 //            joinBlock.PhiInstrRefTable.get(vari_id).id = pgm.instr_pc++;
             joinBlock.VariInstrRefTable.put(vari_id, joinBlock.PhiInstrRefTable.get(vari_id));
             VariableTable.VariMemoryAddress.get(vari_id).instrRef = joinBlock.PhiInstrRefTable.get(vari_id);
@@ -269,55 +401,88 @@ public class IRGenerator {
 //        joinBlock.VariInstrRefTable.put(joinBlock.PhiInstrRefTable);
 //        joinBlock.clone_VariableVersionTable(joinBlock.PhiInstrRefTable);
 
-        pgm.add_block(thenBlock);
-        thenBlock.BlockID = pgm.block_pc;
 
-        pgm.add_block(elseBlock);
-        elseBlock.BlockID = pgm.block_pc;
+        // dominant
+//        block.dominees.add(joinBlock);
 
-        pgm.add_block(joinBlock);
+//        pgm.add_block(thenBlock);
+//        thenBlock.BlockID = pgm.block_pc;
+
+        pgm.add_block(joinBlock, true);
         joinBlock.BlockID = pgm.block_pc;
+//        pgm.add_block(joinBlock);
+//        joinBlock.BlockID = pgm.block_pc;
+
         bra_instr.left.branchBlock = joinBlock;
+
+//        if (elseBlock != null) {
+//            rel_branch_instr.right.branchBlock = elseBlock;
+//        }else{
+//            rel_branch_instr.right.branchBlock = joinBlock;
+//        }
+//        if (block.BlockType != Block.Type.normal && joinBlock.BlockType == Block.Type.){
+//
+//        }
+
     }
 
     private void processWhileStatement(WhileStatement whileStmt, Block block) {
 
         Block joinBlock = new Block(pgm, Block.Type.while_join);
         joinBlock.clone_VariableVersionTable(block.VariInstrRefTable);
+        block.dominees.add(joinBlock);
+
+        if (block.instr_list.size() == 0){
+            block.generateInstr(null);
+//            block = joinBlock;
+        }
+
+        pgm.add_block(joinBlock, true);
+        joinBlock.BlockID = pgm.block_pc;
 
         Block doBlock = new Block(pgm, Block.Type.while_do);
-        doBlock.clone_VariableVersionTable(block.VariInstrRefTable);
+        doBlock.clone_VariableVersionTable(joinBlock.VariInstrRefTable);
         doBlock.preBlock = joinBlock;
+        doBlock.followBlock = joinBlock;
+        joinBlock.dominees.add(doBlock);
+        pgm.add_block(doBlock, true);
+        doBlock.BlockID = pgm.block_pc;
+
 
         Block nextBlock = new Block(pgm, Block.Type.normal);
         nextBlock.preBlock = joinBlock;
+        joinBlock.dominees.add(nextBlock);
 
         Value relation = processRelation(whileStmt.condi, joinBlock);
-        Value rel_branch = new Value(Value.Type.branch, 0);
-        Instruction rel_branch_instr = joinBlock.generateInstr(Instruction.ComplementRelationMap(relation.relOp),relation,rel_branch);
+        Instruction rel_branch_instr = joinBlock.generateInstr(Instruction.ComplementRelationMap(relation.relOp),
+                                                                relation, new Value(Value.Type.branch, 0));
 
         for (Statement stmt : whileStmt.body) {
             processStatement(stmt, doBlock);
         }
-
-        // follows the order: FIFO, first assignment, first in PhiVar,
-        for (int assigned_vari: joinBlock.PhiVar) {
-            for (Instruction instr : doBlock.instr_list) {
-                if (assigned_vari == instr.left.varIdent || assigned_vari == instr.right.varIdent) {
-                    if (assigned_vari == instr.left.varIdent)
-                        instr.left.instrRef = joinBlock.VariInstrRefTable.get(instr.left.varIdent);   // whether need to clone instr!
-                    if (assigned_vari == instr.right.varIdent)
-                        instr.right.instrRef = joinBlock.VariInstrRefTable.get(instr.right.varIdent);   // whether need to clone instr!
-//                    Instruction new_instr_link = pgm.processCSEinWhile(instr, block);
-//                    int var_id = doBlock.id_from_VariableVersionTable(instr);
-//                    doBlock.VariInstrRefTable.put(var_id, new_instr_link);
-//                    System.out.println("");
-//                exprValue.instrRef = new_instr_link;
-//                block.VariInstrRefTable.put(id, exprValue.instrRef);
-//                VariableTable.VariMemoryAddress.put(id, exprValue);
-                }
-            }
+        if (doBlock.instr_list.size() == 0){
+            doBlock.generateInstr(null);
         }
+
+//        // follows the order: FIFO, first assignment, first in PhiVar,
+//        for (int assigned_vari: joinBlock.PhiVar) {
+//            for (Instruction instr : doBlock.instr_list) {
+//                if ((instr.left != null &&  assigned_vari == instr.left.varIdent )||
+//                        (instr.right != null && assigned_vari == instr.right.varIdent)) {
+//                    if (instr.left != null &&  assigned_vari == instr.left.varIdent )
+//                        instr.left.instrRef = joinBlock.VariInstrRefTable.get(instr.left.varIdent);   // whether need to clone instr!
+//                    if (instr.right != null && assigned_vari == instr.right.varIdent)
+//                        instr.right.instrRef = joinBlock.VariInstrRefTable.get(instr.right.varIdent);   // whether need to clone instr!
+////                    Instruction new_instr_link = pgm.processCSEinWhile(instr, block);
+////                    int var_id = doBlock.id_from_VariableVersionTable(instr);
+////                    doBlock.VariInstrRefTable.put(var_id, new_instr_link);
+////                    System.out.println("");
+////                exprValue.instrRef = new_instr_link;
+////                block.VariInstrRefTable.put(id, exprValue.instrRef);
+////                VariableTable.VariMemoryAddress.put(id, exprValue);
+//                }
+//            }
+//        }
 
         int i = 0;
         Iterator<Instruction> iterator = doBlock.instr_list.iterator();
@@ -334,6 +499,7 @@ public class IRGenerator {
             i++;
         }
 
+
             //
 //        for (int i=0; i <= doBlock.instr_list.size(); i++){
 //            if (doBlock.instr_list.get(i).id == -1) {
@@ -347,24 +513,40 @@ public class IRGenerator {
 //            }
 //        }
 
-        if (doBlock.instr_list.size() == 0){
-            doBlock.generateInstr(null);  // create empty SSA
+//        if (doBlock.instr_list.size() == 0){
+//            doBlock.generateInstr(null);  // create empty SSA
+//        }
+
+        nextBlock.clone_VariableVersionTable(joinBlock.VariInstrRefTable);
+        for(Integer var_id: nextBlock.VariInstrRefTable.keySet()){
+            VariableTable.VariMemoryAddress.get(var_id).instrRef = nextBlock.VariInstrRefTable.get(var_id);
         }
 
-        Value bra_branch = new Value(Value.Type.branch, 0);
-        Instruction bra_instr = doBlock.generateInstr(Instruction.Type.bra, bra_branch);
+//        Instruction bra_instr = doBlock.generateInstr(Instruction.Type.bra, new Value(Value.Type.branch, 0));
 
-//        updateReferenceForPhiVarInLoopBody(joinBlock, doBlock);
-//        updateReferenceForPhiVarInJoinBlock(joinBlock);
+//        Instruction bra_instr= null;
+//        if (doBlock.dominees.size() != 0) {
+//            Block cur_block = doBlock.dominees.get(0);
+//
+//            while ((cur_block.BlockType != Block.Type.while_join) && (cur_block.dominees.size() != 0)) {
+//                cur_block =  cur_block.dominees.get(cur_block.dominees.size()-1);
+//            }
+//            if (cur_block.BlockType == Block.Type.while_join) {
+//                // while block always has its dominates, go to the follow
+//                bra_instr = cur_block.dominees.get(cur_block.dominees.size() - 1).generateInstr(Instruction.Type.bra,
+//                        new Value(Value.Type.branch, 0));   // fall through, 0 is to be linked
+//            }else{ // means no more dominators; Direct add bra to here
+//                bra_instr = cur_block.generateInstr(Instruction.Type.bra, new Value(Value.Type.branch, 0));   // fall through, 0 is to be linked
+//            }
+//        }else{
+//            bra_instr = doBlock.generateInstr(Instruction.Type.bra,
+//                    new Value(Value.Type.branch, 0));   // fall through, 0 is to be linked
+//        }
 
-        // end do
-        pgm.add_block(joinBlock);
-        joinBlock.BlockID = pgm.block_pc;
+        Block bra_block = ToEndOfDomineeBlock(doBlock);
+        Instruction bra_instr = bra_block.generateInstr(Instruction.Type.bra, new Value(Value.Type.branch, 0));
 
-        pgm.add_block(doBlock);
-        doBlock.BlockID = pgm.block_pc;
-
-        pgm.add_block(nextBlock);
+        pgm.add_block(nextBlock, true);
         nextBlock.BlockID = pgm.block_pc;
 
         rel_branch_instr.right.branchBlock = nextBlock;
@@ -541,9 +723,22 @@ public class IRGenerator {
         }
     }
 
+    public Block ToEndOfDomineeBlock(Block b) {
+        Block cur_block = b;
+        while ((cur_block.BlockType != Block.Type.while_join) &&
+                (cur_block.BlockType != Block.Type.if_join) &&
+                (cur_block.dominees.size()!=0)){
+            cur_block =  cur_block.dominees.get(0);
+        }
+
+        if (cur_block.BlockType == Block.Type.while_join) {  // take fellow block
+            cur_block = cur_block.dominees.get(cur_block.dominees.size() - 1);
+        }
+        return cur_block;
+    }
 
 
-    //
+        //
 //    public Value computeRelation(Relation rel, Value x, Value y) {
 //        if (x.type == Value.Type.constant && y.type == Value.Type.constant) {
 //            int xc = x.value;

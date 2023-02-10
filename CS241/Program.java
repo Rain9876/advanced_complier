@@ -9,8 +9,7 @@ public class Program {
     public int instr_pc;
     public ArrayList<Block> blocks;
     public HashMap<Integer, Instruction> instructions;
-    public HashMap<Integer, Integer> dominators;
-    public HashMap<Integer, ArrayList<Integer>> dominees;
+    public HashMap<Block, ArrayList<Block>> dominators;   // Each block and its dominatee.
     public HashMap<Instruction.Type, ArrayList<Instruction>> CSE;
 //    public VariableTable vari_table;
 
@@ -19,18 +18,20 @@ public class Program {
         instructions = new HashMap<>();
         blocks = new ArrayList<>();
         dominators = new HashMap<>();
-        dominees = new HashMap<>();
         CSE = new HashMap<>();
         block_pc = 0;
         instr_pc = 1;
 
-        add_block(new Block(this, Block.Type.normal));  // Block constant
+        add_block(new Block(this, Block.Type.normal), true);  // Block constant
     }
 
-    public void add_block(Block block) {
+    public void add_block(Block block, Boolean is_current) {
         block.pgm = this;
+        dominators.put(block, block.dominees);
         blocks.add(block);
-        block_pc += 1;
+        if (is_current) {
+            block_pc += 1;
+        }
     }
 
     public Block cur_block() {

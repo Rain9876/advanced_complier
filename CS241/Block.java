@@ -20,7 +20,8 @@ public class Block {
     public ArrayList<Instruction> instr_list;
     public HashMap<Integer, Instruction> VariInstrRefTable; // Store all variable
     public HashMap<Integer, PhiFunctionInstr> PhiInstrRefTable;
-//    public HashMap<Integer, ArrayList<Instruction>> renamePhiVariWhile;
+    public ArrayList<Block> dominees;   // direct dominees
+    //    public HashMap<Integer, ArrayList<Instruction>> renamePhiVariWhile;
     public ArrayList<Integer> PhiVar;
     public Type BlockType;
 
@@ -33,6 +34,7 @@ public class Block {
     public Block(Type type){
         this.VariInstrRefTable = new HashMap<>();
         this.BlockType = type;
+        this.dominees = new ArrayList<>();
         if ((BlockType == Type.if_join) || (BlockType == Type.while_join)){
             PhiInstrRefTable = new HashMap<>();
             PhiVar = new ArrayList<>();
