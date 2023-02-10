@@ -41,6 +41,12 @@ public class Instruction {
     public Value left;
     public Value right;
 
+    public Instruction(Type type, Value left, Value right){
+        this.type = type;
+        this.left = left;
+        this.right = right;
+    }
+
     public Instruction(int id, Block block){
         this.id = id;
         this.block = block;

@@ -55,7 +55,13 @@ public class Block {
     public void add_instr(Instruction instr){
         instr.block = this;
         instr_list.add(instr);
-        size += 1;
+        size ++;
+    }
+
+    public void remove_instr(int index){
+        instr_list.remove(index);
+        pgm.instr_pc--;
+        size --;
     }
 
     public void clone_VariableVersionTable(HashMap<Integer, Instruction> table) {
@@ -143,7 +149,7 @@ public class Block {
 //    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("");
-        String suffix = (BlockType == Type.if_join)? "join ": "";
+        String suffix = (BlockType == Type.if_join || BlockType == Type.while_join)? "join ": "";
         sb.append(suffix + "BB" + BlockID + ": [\n");
         for (Instruction instr : instr_list) {
             sb.append(instr.toString());

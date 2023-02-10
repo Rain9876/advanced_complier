@@ -8,7 +8,7 @@ import java.net.URL;
 public class test {
     public static void main(String[] args) throws IOException {
         String currentWorkingDir = System.getProperty("user.dir");
-        String test = currentWorkingDir + "/src/CS241/TestCase/006.txt";
+        String test = currentWorkingDir + "/src/CS241/TestCase/007.txt";
         Parser p = new Parser(test);
         Computation comp = p.computation();
 

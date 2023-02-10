@@ -5,43 +5,44 @@ BB0: [
 ]
 BB1: [
 3: cmp (1) (2)
-4: ble (3) (12)
+4: ble (3) (19)
 ]
 BB2: [
 5: add (1) (1)
 7: cmp (5) (2)
-8: ble (7) (11)
+8: ble (7) (17)
 ]
 BB3: [
-9: write (5) 
-10: bra (11) 
+9: cmp (5) (2)
+10: ble (9) (14)
 ]
-join BB4: [
-11: bra (6) 
+BB4: [
+11: add (2) (1)
+13: bra (12)
 ]
 BB5: [
-12: add (2) (1)
-14: cmp (5) (2)
-15: ble (14) (19)
+14: write (11)
 ]
-BB6: [
-16: add (12) (1)
-18: bra (17) 
+join BB6: [
+12: Phi (11) (2)
+15: write (5)
+16: bra (17)
 ]
-BB7: [
-19: write (16) 
+join BB7: [
+17: write (12)
+18: bra (6)
 ]
-join BB8: [
-17: Phi (16) (12)
+BB8: [
+19: add (12) (1)
 ]
 join BB9: [
 6: Phi (5) (1)
-13: Phi (2) (12)
-20: end 
+20: Phi (2) (19)
+21: end
 ]
 
 ====================================================
-The SSA variable table of each block: 
+The SSA variable table of each block:
 BB0 vari table: {
 }
 BB1 vari table: {
@@ -58,25 +59,25 @@ b: (2)
 }
 BB4 vari table: {
 a: (5)
-b: (2)
+b: (11)
 }
 BB5 vari table: {
-a: (1)
-b: (12)
+a: (5)
+b: (2)
 }
 BB6 vari table: {
-a: (1)
-b: (16)
+a: (5)
+b: (12)
 }
 BB7 vari table: {
-a: (1)
-b: (12)
+a: (5)
+b: (2)
 }
 BB8 vari table: {
 a: (1)
-b: (17)
+b: (19)
 }
 BB9 vari table: {
 a: (6)
-b: (13)
+b: (20)
 }

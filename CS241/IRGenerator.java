@@ -292,6 +292,10 @@ public class IRGenerator {
         for (Statement stmt : ifStmt.thenStmts)
             processStatement(stmt, thenBlock);
 
+        if(pgm.cur_block().instr_list.size() == 0){
+            pgm.cur_block().generateInstr(null);
+        }
+
         if (thenBlock.instr_list.size() == 0){
             thenBlock.generateInstr(null);
         }
@@ -300,8 +304,23 @@ public class IRGenerator {
         // else
 
         Block bra_block = ToEndOfDomineeBlock(thenBlock);
-        Instruction bra_instr = bra_block.generateInstr(Instruction.Type.bra, new Value(Value.Type.branch, 0));
+        Instruction bra_instr;
+        if (bra_block.instr_list.size() == 1) {
+            bra_instr = replaceEmptyInstrChecker(bra_block, Instruction.Type.bra, new Value(Value.Type.branch, 0), null);
+        }else{
+            bra_instr = bra_block.generateInstr(Instruction.Type.bra, new Value(Value.Type.branch, 0));
+        }
 
+
+//        System.out.println("*********");
+//        System.out.println(bra_block);
+//        System.out.println(bra_block.instr_list.size());
+//        if (bra_block.instr_list.size() == 2){
+//            Instruction replace_check_instr = bra_block.instr_list.get(0);
+//            System.out.println("*********");
+//            System.out.println(replace_check_instr);
+//            replaceEmptyInstrChecker(replace_check_instr, bra_instr);
+//        }
 //        Instruction bra_instr = null;
 //        Block cur_block = thenBlock;
 //        while ((cur_block.BlockType != Block.Type.while_join) &&
@@ -368,6 +387,11 @@ public class IRGenerator {
                 for (Statement stmt : ifStmt.elseStmts)
                     processStatement(stmt, elseBlock);
             }
+
+            if(pgm.cur_block().instr_list.size() == 0){
+                pgm.cur_block().generateInstr(null);
+            }
+
             if (elseBlock.instr_list.size() == 0) {
                 elseBlock.generateInstr(null);  // create empty SSA
             }
@@ -410,6 +434,7 @@ public class IRGenerator {
 
         pgm.add_block(joinBlock, true);
         joinBlock.BlockID = pgm.block_pc;
+
 //        pgm.add_block(joinBlock);
 //        joinBlock.BlockID = pgm.block_pc;
 
@@ -460,6 +485,11 @@ public class IRGenerator {
         for (Statement stmt : whileStmt.body) {
             processStatement(stmt, doBlock);
         }
+
+        if(pgm.cur_block().size == 0){
+            pgm.cur_block().generateInstr(null);
+        }
+
         if (doBlock.instr_list.size() == 0){
             doBlock.generateInstr(null);
         }
@@ -542,9 +572,13 @@ public class IRGenerator {
 //            bra_instr = doBlock.generateInstr(Instruction.Type.bra,
 //                    new Value(Value.Type.branch, 0));   // fall through, 0 is to be linked
 //        }
-
         Block bra_block = ToEndOfDomineeBlock(doBlock);
-        Instruction bra_instr = bra_block.generateInstr(Instruction.Type.bra, new Value(Value.Type.branch, 0));
+        Instruction bra_instr;
+        if (bra_block.instr_list.size() == 1) {
+            bra_instr = replaceEmptyInstrChecker(bra_block, Instruction.Type.bra, new Value(Value.Type.branch, 0), null);
+        }else{
+            bra_instr = bra_block.generateInstr(Instruction.Type.bra, new Value(Value.Type.branch, 0));
+        }
 
         pgm.add_block(nextBlock, true);
         nextBlock.BlockID = pgm.block_pc;
@@ -725,18 +759,35 @@ public class IRGenerator {
 
     public Block ToEndOfDomineeBlock(Block b) {
         Block cur_block = b;
+        if (b.BlockType == Block.Type.normal){
+            return b;
+        }
         while ((cur_block.BlockType != Block.Type.while_join) &&
                 (cur_block.BlockType != Block.Type.if_join) &&
                 (cur_block.dominees.size()!=0)){
             cur_block =  cur_block.dominees.get(0);
         }
 
-        if (cur_block.BlockType == Block.Type.while_join) {  // take fellow block
+        if ((cur_block.BlockType == Block.Type.while_join)) {  // take fellow block
             cur_block = cur_block.dominees.get(cur_block.dominees.size() - 1);
         }
         return cur_block;
     }
 
+    public Instruction replaceEmptyInstrChecker(Block block, Instruction.Type type, Value x, Value y){
+        Instruction bra_instr;
+        Instruction empty_checker = block.instr_list.get(0);
+        if (empty_checker.type == null) {
+            bra_instr = new Instruction(type, x,y);
+            bra_instr.id = empty_checker.id;
+            bra_instr.block = block;
+            block.instr_list.remove(0);
+            block.instr_list.add(bra_instr);
+        }else{
+            bra_instr = block.generateInstr(Instruction.Type.bra, new Value(Value.Type.branch, 0));
+        }
+        return bra_instr;
+    }
 
         //
 //    public Value computeRelation(Relation rel, Value x, Value y) {

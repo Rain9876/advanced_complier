@@ -6,16 +6,15 @@ var a, b;
 	if a > b then
 		let a <- a + 1;
 		if a > 2 then
-			call OutputNum(a);
-		fi
+            if a > 2 then
+                let b <- b + 1;
+            else
+                call OutputNum(b);
+            fi;
+            call OutputNum(a);
+		fi;
 		call OutputNum(b);
 	else
 		let b <- b + 1;
-        if a > 2 then
-            let b <- b + 1;
-        else
-            call OutputNum(b);
-        fi
-        call OutputNum(a);
 	fi
 }.
